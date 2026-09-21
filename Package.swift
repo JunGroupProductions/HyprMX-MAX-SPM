@@ -1,6 +1,6 @@
 // swift-tools-version:5.3
 // HyprMX-Max adapter for AppLovin MAX mediation.
-// Version: 6.4.6.0
+// Version: 6.4.7.0
 import PackageDescription
 
 let package = Package(
@@ -15,7 +15,7 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/JunGroupProductions/HyprMX-SDK-SPM.git", .exact("6.4.6")),
+        .package(url: "https://github.com/JunGroupProductions/HyprMX-SDK-SPM.git", .exact("6.4.7")),
         .package(url: "https://github.com/AppLovin/AppLovin-MAX-Swift-Package.git", "12.4.0"..<"14.0.0"),
     ],
     targets: [

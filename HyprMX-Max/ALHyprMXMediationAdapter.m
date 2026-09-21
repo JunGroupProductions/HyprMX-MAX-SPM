@@ -5,7 +5,7 @@
 #import "HyprMX_Max.h"
 #import <HyprMX/HyprMX.h>
 
-#define ADAPTER_VERSION @"6.4.6.0"
+#define ADAPTER_VERSION @"6.4.7.0"
 
 /**
  * Dedicated delegate object for HyprMX initialization.
@@ -100,9 +100,9 @@ static BOOL testModeEnabled = NO;
     {
         NSString *distributorId;
         if (testModeEnabled) {
-            [self log: @"Test mode is enabled. Replacing distributorId with test one %@", distributorId];
             distributorId = kHyprMXTestDistributorId;
             [HyprMX setLogLevel: HYPRLogLevelDebug];
+            [self log: @"Test mode is enabled. Replacing distributorId with test one %@", distributorId];
         } else {
             distributorId = [parameters.serverParameters al_stringForKey: @"app_id"];
         }
@@ -144,6 +144,12 @@ static BOOL testModeEnabled = NO;
             completionHandler(MAAdapterInitializationStatusInitializedUnknown, nil);
         }
     }
+}
+
+// Destroy tears down a HyprMXBannerView (a UIView), so it must run on the main thread. (MAX 13.0.2+ honors this; older SDKs never call it.)
+- (nullable NSNumber *)shouldDestroyOnMainThread
+{
+    return @1;
 }
 
 - (void)destroy
@@ -223,29 +229,17 @@ static BOOL testModeEnabled = NO;
     
     if ( [self.interstitialAd isAdAvailable] )
     {
-        UIViewController *presentingViewController;
-        if ( ALSdk.versionCode >= 11020199 )
-        {
-            presentingViewController = parameters.presentingViewController ?: [ALUtils topViewControllerFromKeyWindow];
-        }
-        else
-        {
-            presentingViewController = [ALUtils topViewControllerFromKeyWindow];
-        }
-        
+        UIViewController *presentingViewController = parameters.presentingViewController ?: [ALUtils topViewControllerFromKeyWindow];
+
         [self.interstitialAd showAdFromViewController:presentingViewController delegate:self.interstitialAdDelegate];
     }
     else
     {
         [self log: @"Interstitial ad not ready"];
-        
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-        [delegate didFailToDisplayInterstitialAdWithError: [MAAdapterError errorWithCode: -4205
-                                                                             errorString: @"Ad Display Failed"
-                                                                  thirdPartySdkErrorCode: 0
-                                                               thirdPartySdkErrorMessage: @"Interstitial ad not ready"]];
-#pragma clang diagnostic pop
+
+        [delegate didFailToDisplayInterstitialAdWithError: [MAAdapterError errorWithAdapterError: MAAdapterError.adDisplayFailedError
+                                                                        mediatedNetworkErrorCode: 0
+                                                                     mediatedNetworkErrorMessage: @"Interstitial ad not ready"]];
     }
 }
 
@@ -272,30 +266,18 @@ static BOOL testModeEnabled = NO;
     {
         // Configure reward from server.
         [self configureRewardForParameters: parameters];
-        
-        UIViewController *presentingViewController;
-        if ( ALSdk.versionCode >= 11020199 )
-        {
-            presentingViewController = parameters.presentingViewController ?: [ALUtils topViewControllerFromKeyWindow];
-        }
-        else
-        {
-            presentingViewController = [ALUtils topViewControllerFromKeyWindow];
-        }
-        
+
+        UIViewController *presentingViewController = parameters.presentingViewController ?: [ALUtils topViewControllerFromKeyWindow];
+
         [self.rewardedAd showAdFromViewController:presentingViewController delegate:self.rewardedAdDelegate];
-  }
+    }
     else
     {
         [self log: @"Rewarded ad not ready"];
-        
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-        [delegate didFailToDisplayRewardedAdWithError: [MAAdapterError errorWithCode: -4205
-                                                                         errorString: @"Ad Display Failed"
-                                                              thirdPartySdkErrorCode: 0
-                                                           thirdPartySdkErrorMessage: @"Rewarded ad not ready"]];
-#pragma clang diagnostic pop
+
+        [delegate didFailToDisplayRewardedAdWithError: [MAAdapterError errorWithAdapterError: MAAdapterError.adDisplayFailedError
+                                                                    mediatedNetworkErrorCode: 0
+                                                                 mediatedNetworkErrorMessage: @"Rewarded ad not ready"]];
     }
 }
 
@@ -426,13 +408,9 @@ static BOOL testModeEnabled = NO;
             break;
     }
     
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    return [MAAdapterError errorWithCode: adapterError.errorCode
-                             errorString: adapterError.errorMessage
-                  thirdPartySdkErrorCode: hyprMXErrorCode
-               thirdPartySdkErrorMessage: hyprMXMessage ?: @""];
-#pragma clang diagnostic pop
+    return [MAAdapterError errorWithAdapterError: adapterError
+                        mediatedNetworkErrorCode: hyprMXErrorCode
+                     mediatedNetworkErrorMessage: hyprMXMessage ?: @""];
 }
 
 @end
@@ -573,15 +551,11 @@ static BOOL testModeEnabled = NO;
 - (void)adDisplayError:(NSError *)error placement:(HyprMXPlacement *)placement
 {
     [self.parentAdapter log: @"Interstitial failed to display with error: %@ for placement: %@", error.localizedDescription, placement.placementName];
-    
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    MAAdapterError *adapterError = [MAAdapterError errorWithCode: -4205
-                                                     errorString: @"Ad Display Failed"
-                                          thirdPartySdkErrorCode: error.code
-                                       thirdPartySdkErrorMessage: error.localizedDescription];
-#pragma clang diagnostic pop
-    
+
+    MAAdapterError *adapterError = [MAAdapterError errorWithAdapterError: MAAdapterError.adDisplayFailedError
+                                                mediatedNetworkErrorCode: error.code
+                                             mediatedNetworkErrorMessage: error.localizedDescription];
+
     [self.delegate didFailToDisplayInterstitialAdWithError: adapterError];
 }
 
@@ -645,15 +619,11 @@ static BOOL testModeEnabled = NO;
 - (void)adDisplayError:(NSError *)error placement:(HyprMXPlacement *)placement
 {
     [self.parentAdapter log: @"Rewarded ad failed to display with error: %@, for placement: %@", error.localizedDescription, placement.placementName];
-    
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    MAAdapterError *adapterError = [MAAdapterError errorWithCode: -4205
-                                                     errorString: @"Ad Display Failed"
-                                          thirdPartySdkErrorCode: error.code
-                                       thirdPartySdkErrorMessage: error.localizedDescription];
-#pragma clang diagnostic pop
-    
+
+    MAAdapterError *adapterError = [MAAdapterError errorWithAdapterError: MAAdapterError.adDisplayFailedError
+                                                mediatedNetworkErrorCode: error.code
+                                             mediatedNetworkErrorMessage: error.localizedDescription];
+
     [self.delegate didFailToDisplayRewardedAdWithError: adapterError];
 }
 
