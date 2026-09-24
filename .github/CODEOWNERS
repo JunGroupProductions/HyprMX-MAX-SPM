@@ -1,5 +1,1 @@
-# Changes to this repository ship directly to customer apps via Swift Package Manager.
-# All changes require review from an SDK owner. See PLAYER-28061.
-*                  @JunGroupProductions/displaydevelopers
-/Package.swift     @JunGroupProductions/displaydevelopers
-/.github/          @JunGroupProductions/displaydevelopers
+* @JunGroupProductions/displaydevelopers
